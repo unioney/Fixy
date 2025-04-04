@@ -1,31 +1,26 @@
 const { Pool } = require('pg');
-const dotenv = require('dotenv');
 
-dotenv.config();
-
+// Create a new PostgreSQL connection pool.
+// If DATABASE_URL is provided (common in production), it will be used.
+// Otherwise, fall back to individual PG* environment variables with defaults.
 const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
+  connectionString: process.env.DATABASE_URL, // e.g., postgres://user:password@host:port/database
+  host: process.env.PGHOST || 'localhost',
+  port: process.env.PGPORT || 5432,
+  user: process.env.PGUSER || 'postgres',
+  password: process.env.PGPASSWORD || '',
+  database: process.env.PGDATABASE || 'postgres'
 });
 
 const connectToDatabase = async () => {
   try {
-    // Test connection
-    const client = await pool.connect();
-    console.log('Database connection successful');
-    client.release();
-    return true;
-  } catch (error) {
-    console.error('Database connection error:', error);
-    throw error;
+    // Test the connection by running a simple query
+    await pool.query('SELECT NOW()');
+    console.log('Connected to database successfully');
+  } catch (err) {
+    console.error('Database connection error:', err);
+    throw err;
   }
 };
 
-module.exports = {
-  pool,
-  connectToDatabase,
-  query: (text, params) => pool.query(text, params),
-};
+module.exports = { pool, connectToDatabase };
