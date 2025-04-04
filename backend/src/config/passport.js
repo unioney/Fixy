@@ -4,10 +4,16 @@ const ExtractJwt = require('passport-jwt').ExtractJwt;
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const db = require('./database');
 
+// Use JWT_SECRET from environment or a fallback for development only
+const jwtSecret = process.env.JWT_SECRET || 'fallback_secret_for_development_only';
+if (!process.env.JWT_SECRET) {
+  console.warn('Warning: JWT_SECRET environment variable is not set. Using fallback secret for development purposes only.');
+}
+
 // JWT Strategy
 const jwtOptions = {
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-  secretOrKey: process.env.JWT_SECRET
+  secretOrKey: jwtSecret
 };
 
 passport.use(
