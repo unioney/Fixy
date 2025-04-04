@@ -1,20 +1,29 @@
 const { Pool } = require('pg');
 
-// Create a new PostgreSQL connection pool.
-// If DATABASE_URL is provided (common in production), it will be used.
-// Otherwise, fall back to individual PG* environment variables with defaults.
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, // e.g., postgres://user:password@host:port/database
-  host: process.env.PGHOST || 'localhost',
-  port: process.env.PGPORT || 5432,
-  user: process.env.PGUSER || 'postgres',
-  password: process.env.PGPASSWORD || '',
-  database: process.env.PGDATABASE || 'postgres'
-});
+let poolConfig;
+
+if (process.env.NODE_ENV === 'production') {
+  // In production, require DATABASE_URL to be set.
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL environment variable must be set in production.');
+  }
+  poolConfig = {
+    connectionString: process.env.DATABASE_URL,
+    // For many production environments (like Heroku, Render), SSL is required:
+    ssl: { rejectUnauthorized: false }
+  };
+} else {
+  // In development, use DATABASE_URL if set; otherwise, fallback to localhost.
+  poolConfig = {
+    connectionString: process.env.DATABASE_URL || 'postgres://postgres:@localhost:5432/postgres'
+  };
+}
+
+const pool = new Pool(poolConfig);
 
 const connectToDatabase = async () => {
   try {
-    // Test the connection by running a simple query
+    // Test the connection by running a simple query.
     await pool.query('SELECT NOW()');
     console.log('Connected to database successfully');
   } catch (err) {
