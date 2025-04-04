@@ -10,6 +10,21 @@ if (!process.env.JWT_SECRET) {
   console.warn('Warning: JWT_SECRET environment variable is not set. Using fallback secret for development purposes only.');
 }
 
+// Use Google OAuth environment variables or fallbacks for development
+const googleClientID = process.env.GOOGLE_CLIENT_ID || 'fallback_client_id_for_development_only';
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || 'fallback_client_secret_for_development_only';
+const googleCallbackURL = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/auth/google/callback';
+
+if (!process.env.GOOGLE_CLIENT_ID) {
+  console.warn('Warning: GOOGLE_CLIENT_ID environment variable is not set. Using fallback client ID for development purposes only.');
+}
+if (!process.env.GOOGLE_CLIENT_SECRET) {
+  console.warn('Warning: GOOGLE_CLIENT_SECRET environment variable is not set. Using fallback client secret for development purposes only.');
+}
+if (!process.env.GOOGLE_CALLBACK_URL) {
+  console.warn('Warning: GOOGLE_CALLBACK_URL environment variable is not set. Using fallback callback URL for development purposes only.');
+}
+
 // JWT Strategy
 const jwtOptions = {
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -38,9 +53,9 @@ passport.use(
 passport.use(
   new GoogleStrategy(
     {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL,
+      clientID: googleClientID,
+      clientSecret: googleClientSecret,
+      callbackURL: googleCallbackURL,
       scope: ['profile', 'email']
     },
     async (accessToken, refreshToken, profile, done) => {
