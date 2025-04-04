@@ -1,5 +1,4 @@
 // Basic Error Handling Middleware
-
 const errorHandler = (err, req, res, next) => {
   console.error('ERROR:', err.stack || err); // Log error stack trace to console
 
@@ -11,10 +10,9 @@ const errorHandler = (err, req, res, next) => {
   // Example: Don't expose stack trace in production
   if (process.env.NODE_ENV === 'production' && !err.isOperational) {
       message = 'Something went wrong!';
-      // Potentially log more details to a dedicated logging service
   }
 
-  // Set response status code and send JSON error response
+  // Send JSON error response
   res.status(statusCode).json({
       status: 'error',
       message: message,
@@ -23,4 +21,4 @@ const errorHandler = (err, req, res, next) => {
   });
 };
 
-module.exports = errorHandler;
+module.exports = { errorHandler };

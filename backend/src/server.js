@@ -32,7 +32,7 @@ const { setupSocketHandlers } = require('./services/socket.service');
 // Import database connection
 const { connectToDatabase } = require('./config/database');
 
-// Import passport config
+// Import passport config (ensures strategies are registered)
 require('./config/passport');
 
 // Create Express app
@@ -78,7 +78,11 @@ app.use('/api/byok', authenticateJwt, byokRoutes);
 app.use('/api/invites', authenticateJwt, inviteRoutes);
 
 // Stripe webhook route (needs raw body)
-app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), require('./controllers/stripe.controller').handleWebhook);
+app.post(
+  '/api/stripe/webhook',
+  express.raw({ type: 'application/json' }),
+  require('./controllers/stripe.controller').handleWebhook
+);
 
 // Health check route
 app.get('/health', (req, res) => {
