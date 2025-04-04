@@ -23,7 +23,6 @@ const byokRoutes = require('./routes/byok.routes');
 const inviteRoutes = require('./routes/invite.routes');
 
 // Import middleware
-const { errorHandler } = require('./middleware/error.middleware');
 const { authenticateJwt } = require('./middleware/auth.middleware');
 
 // Import socket handlers
