@@ -6,7 +6,7 @@ const { sendEmail } = require('../services/email.service');
 // Get all chatrooms for a user
 exports.getChatrooms = async (req, res, next) => {
   try {
-    const { userId } = req; // ID of the user making the request
+    const { userId } = req;
     
     const result = await db.query(
       `SELECT c.id, c.title, c.type, c.owner_id, c.created_at, c.updated_at,
@@ -28,8 +28,8 @@ exports.getChatrooms = async (req, res, next) => {
 // Get a single chatroom with participants and agents
 exports.getChatroom = async (req, res, next) => {
   try {
-    const { userId } = req; // ID of the user making the request
-    const { id } = req.params; // Chatroom ID
+    const { userId } = req;
+    const { id } = req.params;
     
     // Check if user is a participant
     const participantCheck = await db.query(
@@ -90,10 +90,10 @@ exports.getChatroom = async (req, res, next) => {
 // Create a new chatroom
 exports.createChatroom = async (req, res, next) => {
   try {
-    const { userId } = req; // ID of the user making the request
+    const { userId } = req;
     const { title, type } = req.body;
     
-    // Check user plan for Teams requirement if creating a group chat
+    // Check user plan for Teams requirement if adding other participants
     if (type === 'group') {
       const userResult = await db.query(
         'SELECT plan FROM users WHERE id = $1',
@@ -127,7 +127,7 @@ exports.createChatroom = async (req, res, next) => {
     await db.query(
       `INSERT INTO chatroom_participants (chatroom_id, user_id)
        VALUES ($1, $2)`,
-      [chatroom.id, userId] // Use the owner's ID
+      [chatroom.id, userId]
     );
     
     res.status(201).json({ 
@@ -142,8 +142,8 @@ exports.createChatroom = async (req, res, next) => {
 // Update a chatroom
 exports.updateChatroom = async (req, res, next) => {
   try {
-    const { userId } = req; // ID of the user making the request
-    const { id } = req.params; // Chatroom ID
+    const { userId } = req;
+    const { id } = req.params;
     const { title } = req.body;
     
     // Check if user is the owner
@@ -181,8 +181,8 @@ exports.updateChatroom = async (req, res, next) => {
 // Delete a chatroom
 exports.deleteChatroom = async (req, res, next) => {
   try {
-    const { userId } = req; // ID of the user making the request
-    const { id } = req.params; // Chatroom ID
+    const { userId } = req;
+    const { id } = req.params;
     
     // Check if user is the owner
     const chatroomResult = await db.query(
@@ -215,11 +215,11 @@ exports.deleteChatroom = async (req, res, next) => {
 // Add a participant to a chatroom (Teams plan only)
 exports.addParticipant = async (req, res, next) => {
   try {
-    const { userId } = req; // ID of the user making the request (inviter)
-    const { id } = req.params; // Chatroom ID
-    const { email } = req.body; // Email of the user to add (invitee)
+    const { userId } = req;
+    const { id } = req.params;
+    const { email } = req.body;
     
-    // Check if user making request is the owner
+    // Check if user is the owner
     const chatroomResult = await db.query(
       'SELECT c.*, u.plan FROM chatrooms c JOIN users u ON c.owner_id = u.id WHERE c.id = $1',
       [id]
@@ -231,7 +231,7 @@ exports.addParticipant = async (req, res, next) => {
     
     const chatroom = chatroomResult.rows[0];
     
-    if (chatroom.owner_id !== userId) { // Check against inviter's ID
+    if (chatroom.owner_id !== userId) {
       return res.status(403).json({ message: 'Only the owner can add participants' });
     }
     
@@ -243,36 +243,34 @@ exports.addParticipant = async (req, res, next) => {
       });
     }
     
-    // Check if the user to be added already exists by email
+    // Check if user already exists
     const userResult = await db.query(
       'SELECT id FROM users WHERE email = $1',
       [email]
     );
     
-    // *** FIX APPLIED BELOW ***
-    // REMOVED: let userId; 
-
+    let userId;
+    
     if (userResult.rows.length > 0) {
-      // User exists, get their ID
-      const participantUserId = userResult.rows[0].id; // Use new variable name for the user being added
-
-      // Check if this user is already a participant in this chatroom
+      userId = userResult.rows[0].id;
+      
+      // Check if already a participant
       const participantCheck = await db.query(
         'SELECT * FROM chatroom_participants WHERE chatroom_id = $1 AND user_id = $2',
-        [id, participantUserId] // Use the new variable name
+        [id, userId]
       );
       
       if (participantCheck.rows.length > 0) {
         return res.status(400).json({ message: 'User is already a participant' });
       }
       
-      // Add existing user as participant
+      // Add as participant
       await db.query(
         'INSERT INTO chatroom_participants (chatroom_id, user_id) VALUES ($1, $2)',
-        [id, participantUserId] // Use the new variable name
+        [id, userId]
       );
       
-      // Send notification email to the added participant
+      // Send notification email
       await sendEmail({
         to: email,
         subject: `You've been added to a chatroom on Fixy`,
@@ -283,33 +281,32 @@ exports.addParticipant = async (req, res, next) => {
       });
       
       return res.status(200).json({ message: 'Participant added successfully' });
-
-    } else {
-      // User doesn't exist, create an invite
-      const token = uuidv4();
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
-      
-      await db.query(
-        `INSERT INTO team_invites (email, inviter_id, chatroom_id, token, expires_at)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [email, userId, id, token, expiresAt] // Use original userId (inviter's ID) here
-      );
-      
-      // Send invite email
-      const inviteUrl = `${process.env.FRONTEND_URL}/invite?token=${token}`;
-      await sendEmail({
-        to: email,
-        subject: `You've been invited to join Fixy`,
-        text: `You've been invited to join the chatroom "${chatroom.title}" on Fixy. Click here to accept: ${inviteUrl}`,
-        html: `<h1>You've been invited to join Fixy</h1>
-               <p>You've been invited to join the chatroom "${chatroom.title}" on Fixy.</p>
-               <p><a href="${inviteUrl}">Click here to accept the invitation</a></p>
-               <p>This invitation expires in 7 days.</p>`
-      });
-      
-      res.status(200).json({ message: 'Invitation sent successfully' });
     }
+    
+    // User doesn't exist, create invite
+    const token = uuidv4();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
+    
+    await db.query(
+      `INSERT INTO team_invites (email, inviter_id, chatroom_id, token, expires_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [email, userId, id, token, expiresAt]
+    );
+    
+    // Send invite email
+    const inviteUrl = `${process.env.FRONTEND_URL}/invite?token=${token}`;
+    await sendEmail({
+      to: email,
+      subject: `You've been invited to join Fixy`,
+      text: `You've been invited to join the chatroom "${chatroom.title}" on Fixy. Click here to accept: ${inviteUrl}`,
+      html: `<h1>You've been invited to join Fixy</h1>
+             <p>You've been invited to join the chatroom "${chatroom.title}" on Fixy.</p>
+             <p><a href="${inviteUrl}">Click here to accept the invitation</a></p>
+             <p>This invitation expires in 7 days.</p>`
+    });
+    
+    res.status(200).json({ message: 'Invitation sent successfully' });
   } catch (error) {
     next(error);
   }
@@ -318,11 +315,11 @@ exports.addParticipant = async (req, res, next) => {
 // Remove a participant from a chatroom
 exports.removeParticipant = async (req, res, next) => {
   try {
-    const { userId } = req; // ID of the user making the request
-    const { id } = req.params; // Chatroom ID
-    const { participantId } = req.body; // ID of the participant to remove
+    const { userId } = req;
+    const { id } = req.params;
+    const { participantId } = req.body;
     
-    // Check if user is the owner OR if the user is trying to remove themselves
+    // Check if user is the owner
     const chatroomResult = await db.query(
       'SELECT * FROM chatrooms WHERE id = $1',
       [id]
@@ -332,31 +329,20 @@ exports.removeParticipant = async (req, res, next) => {
       return res.status(404).json({ message: 'Chatroom not found' });
     }
     
-    const isOwner = chatroomResult.rows[0].owner_id === userId;
-    const isRemovingSelf = participantId === userId;
-
-    if (!isOwner && !isRemovingSelf) { // Allow removal only if owner OR if removing self
-         return res.status(403).json({ message: 'You do not have permission to remove this participant' });
+    if (chatroomResult.rows[0].owner_id !== userId && participantId !== userId) {
+      return res.status(403).json({ message: 'Only the owner can remove other participants' });
     }
-
-    // Owner cannot be removed (implicitly handled by logic above, but explicit check is clearer)
-    if (participantId === chatroomResult.rows[0].owner_id && !isRemovingSelf) {
-       // This condition should ideally not be met if the above logic is correct, 
-       // but added for robustness. A user cannot remove the owner unless they ARE the owner removing someone else.
-       // If the owner tries to remove themselves via this endpoint, the !isRemovingSelf prevents it.
-       // Separate "leave chatroom" or "delete chatroom" logic should handle the owner leaving/deleting.
-        return res.status(400).json({ message: 'The owner cannot be removed via this action.' });
+    
+    // Cannot remove the owner
+    if (participantId === chatroomResult.rows[0].owner_id) {
+      return res.status(400).json({ message: 'Cannot remove the owner from the chatroom' });
     }
     
     // Remove participant
-    const deleteResult = await db.query(
-      'DELETE FROM chatroom_participants WHERE chatroom_id = $1 AND user_id = $2 RETURNING *',
+    await db.query(
+      'DELETE FROM chatroom_participants WHERE chatroom_id = $1 AND user_id = $2',
       [id, participantId]
     );
-
-    if (deleteResult.rowCount === 0) {
-         return res.status(404).json({ message: 'Participant not found in this chatroom.' });
-    }
     
     res.status(200).json({ message: 'Participant removed successfully' });
   } catch (error) {
