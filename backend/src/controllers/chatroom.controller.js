@@ -250,9 +250,10 @@ exports.addParticipant = async (req, res, next) => {
     );
     
     let userId;
-    
-    if (userResult.rows.length > 0) {
-      userId = userResult.rows[0].id;
+
+if (userResult.rows.length > 0) {
+  userId = userResult.rows[0].id;
+
       
       // Check if already a participant
       const participantCheck = await db.query(
