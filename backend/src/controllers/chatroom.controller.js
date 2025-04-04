@@ -249,16 +249,15 @@ exports.addParticipant = async (req, res, next) => {
       [email]
     );
     
-    let userId;
+    let foundUserId; // renamed variable to avoid conflict with req.userId
 
-if (userResult.rows.length > 0) {
-  userId = userResult.rows[0].id;
-
+    if (userResult.rows.length > 0) {
+      foundUserId = userResult.rows[0].id;
       
       // Check if already a participant
       const participantCheck = await db.query(
         'SELECT * FROM chatroom_participants WHERE chatroom_id = $1 AND user_id = $2',
-        [id, userId]
+        [id, foundUserId]
       );
       
       if (participantCheck.rows.length > 0) {
@@ -268,7 +267,7 @@ if (userResult.rows.length > 0) {
       // Add as participant
       await db.query(
         'INSERT INTO chatroom_participants (chatroom_id, user_id) VALUES ($1, $2)',
-        [id, userId]
+        [id, foundUserId]
       );
       
       // Send notification email
